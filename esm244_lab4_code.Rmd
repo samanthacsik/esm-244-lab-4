@@ -76,3 +76,35 @@ ggplot(cell_growth, aes(x = Time, y = CellCount)) +
   geom_line(data = pred_df, aes(x = time_seq, y = cell_pred), color = "orange", size = 1)
 ```
 
+Panel Regression - First Shot
+
+# using "Cigarette" dataset within Ecdat
+Entity variable = "state"
+Time variable = "year"
+Dependent variable = "packpc"
+Predictor variable = "avgprs"
+
+```{r}
+cigs_panel <- Cigarette %>% 
+  select(state, year, packpc, avgprs)
+
+ggplot(cigs_panel, aes(x = avgprs, y = packpc, group = state)) +
+  geom_point(aes(color = state)) +
+  geom_smooth(method = "lm", aes(color = state), se = FALSE, size = 0.2)
+
+# overall across states, looks like avg price is affecting purchases in a similar way
+
+# what's happening over years?
+ggplot(cigs_panel, aes(x = year, y = packpc, group = state)) +
+  geom_point(aes(color = state)) +
+  geom_smooth(method = "lm", aes(color = state), se = FALSE, size = 0.2)
+```
+
+Entity fixed effects model:
+```{r}
+cigs_model < - plm(packpc ~ avgprs,
+                 data = cigs_panel,
+                 index = c("state", "year"),
+                 model = "within") # tells it to do entity fixed effects model
+```
+
