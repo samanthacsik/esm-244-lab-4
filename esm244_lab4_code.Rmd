@@ -1,0 +1,78 @@
+---
+title: "ESM 244 lab 4"
+author: "Sam Csik"
+date: "1/31/2019"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+0. Part 0. load packages
+```{r}
+library(tidyverse)
+library(Ecdat)
+library(plm)
+library(lmtest)
+library(car)
+```
+
+1. Part 1: nonlinear least squares (logistic growth of bacteria)
+```{r}
+# read in data
+cell_growth <- read_csv("CellGrowth.csv")
+
+# plot data
+ggplot(cell_growth, aes(x = Time, y = CellCount)) +
+  geom_point()
+
+# Find estimates for logistic growth:
+# Logistic growth: Nt = A/(1+Be^(-rt)); B = (K-N0)/N0
+# Estimate for carrying capacity: 3700
+# Okay, now if N0 is 2000, what is B? ~ 0.85
+# r initial estimate ~0.1035
+
+BEstimate <- (3700 - 2000)/2000
+
+# Now, we're going to estimate r (the growth rate)
+
+lag_phase <- cell_growth %>% 
+  filter(Time < 5)
+
+ggplot(lag_phase, aes(x = Time, y = log(CellCount))) +
+  geom_point() # looks linear now so even more sure that this was exponential growth
+
+lm(log(CellCount) ~ Time, data = lag_phase) # model where you find a slope and dependent variable is lob(CellCount)
+```
+
+Find model A, B, and r using Gauss-Newton method for interative convergence (nonlinear least squares):
+
+Use nls() function:
+
+```{r}
+cell_fit <- nls(CellCount ~ A/(1 + B*exp(-r*Time)), # this is where you input logistic growth equation
+                start = list(A = 3700, B = 0.85, r = 0.1035),
+                data = cell_growth,
+                trace = TRUE) # don't need this but cool to see trace of interations until convergence
+
+# square residuals associated with nonlinear model (values on the left of : when you run model)
+
+# store the model coefficients
+A <- coef(cell_fit)[1]
+B <- coef(cell_fit)[2]
+r <- coef(cell_fit)[3]
+
+# create a new sequence of time values (time_seq)
+time_seq <- seq(0, 20, length = 100)
+
+# plug that new sequence inot my model with the parameters A, B and r that we found:
+cell_pred <- A/(1 + B*exp(-r*time_seq))
+
+# bind that together with the time_seq data:
+pred_df <- data.frame(time_seq, cell_pred)
+
+# create a graph with the original data and our model predictions:
+ggplot(cell_growth, aes(x = Time, y = CellCount)) +
+  geom_point(color = "blue", size = 3) +
+  geom_line(data = pred_df, aes(x = time_seq, y = cell_pred), color = "orange", size = 1)
+```
+
